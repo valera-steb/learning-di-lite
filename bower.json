@@ -1,0 +1,26 @@
+{
+  "name": "learning-di-lite",
+  "version": "0.0.0",
+  "homepage": "https://github.com/valera-steb/learning-di-lite",
+  "authors": [
+    "valeriy.tereshenko <tereshenko.valeriy.v@gmail.com>"
+  ],
+  "description": "test",
+  "keywords": [
+    "test",
+    "di",
+    "di-lite"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jasmine-core": "~2.3.4",
+    "di-lite": "~0.3.3"
+  }
+}
