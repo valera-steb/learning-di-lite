@@ -64,4 +64,52 @@ describe('подход к компоновке объектов', function () {
             expect(a.c.a).toBe(a);
         });
     });
+
+    describe('подгрузка модулей require.js-ом', function () {
+        it('должен выстраивать контекст по данным базовым файлам', function (done) {
+            require.config({
+                baseUrl: '../../src/domain'
+
+            });
+            require(['require_js_provider'], function (provider) {
+                provider['buildCtx'](['model'], function (ctx) {
+                    ctx.initialize();
+
+                    var domain = ctx.get('domain');
+                    expect(domain.item.key).toBe('item');
+                    domain.run();
+
+                    expect(domain.item.key).toBe('executed');
+                    done();
+                });
+            });
+        });
+    });
+
+    describe('тестирование с подгрузкой модулей require.js-ом', function () {
+        it('должен переопределять имена после загрузки', function (done) {
+            require.config({
+                baseUrl: '../../src/domain'
+
+            });
+            require(['require_js_provider'], function (provider) {
+                provider['buildCtx'](['model', 'testItem'], function (ctx) {
+                    // фикстура testItem - не уверен что подмешаеться вовремя...
+
+                    //require(['testItem'], function (fixture) {
+                    //  provider['addTypes'](arguments, ctx);
+
+                    ctx.initialize();
+
+                    var domain = ctx.get('domain');
+                    expect(domain.item.key).toBe('item');
+                    domain.run();
+
+                    expect(domain.item.key).toBe('fixture');
+                    done();
+                    //});
+                });
+            });
+        });
+    });
 });
