@@ -3,13 +3,28 @@
  */
 define('require_js_provider', [], function () {
 
+    function registrateParent(type, ctx) {
+        if (!type['parent'])
+            return;
+
+        type['factory'] = di.factory.func;
+
+        var c = type['c'];
+        type['c'] = function(){
+            var parent = ctx.get(type['parent']);
+            c.prototype = parent;
+
+            return new c(parent);
+        }
+    }
+
     function registrateSettings(reg, type, key) {
         if (type[key])
             reg[key](type[key]);
     }
 
     function isType(x) {
-        return x['name'] && x['c'];
+        return x && x['name'] && x['c'];
     }
 
     function add(types, ctx) {
@@ -19,8 +34,9 @@ define('require_js_provider', [], function () {
             if (!isType(type))
                 continue;
 
-            var reg = ctx.register(type.name, type.c);
+            registrateParent(type, ctx);
 
+            var reg = ctx.register(type.name, type.c);
             registrateSettings(reg, type, 'strategy');
             registrateSettings(reg, type, 'factory');
 
