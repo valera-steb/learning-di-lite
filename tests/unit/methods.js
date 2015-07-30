@@ -64,4 +64,103 @@ describe('подход к компоновке объектов', function () {
             expect(a.c.a).toBe(a);
         });
     });
+
+    describe('подгрузка модулей require.js-ом', function () {
+        beforeEach(function () {
+            require.config({
+                baseUrl: '../../src/domain'
+
+            });
+        });
+
+
+        it('должен выстраивать контекст по данным базовым файлам', function (done) {
+            require(['require_js_provider'], function (provider) {
+                provider['buildCtx'](['model'], function (ctx) {
+                    ctx.initialize();
+
+                    var domain = ctx.get('domain');
+                    expect(domain.item.key).toBe('item');
+                    domain.run();
+
+                    expect(domain.item.key).toBe('executed');
+                    done();
+                });
+            });
+        });
+
+        it('можно выстраивать наследование *', function(done){
+            require(['require_js_provider'], function (provider) {
+                provider['buildCtx'](['inheritance/child'], function (ctx) {
+                    ctx.initialize();
+
+                    var child1 = ctx.get('inheritance.child');
+                    var child2 = ctx.get('inheritance.child');
+
+                    /* при инициализации di-lite создаёт экземпляры объектов
+                       поэтому хоть нумерация родителя и начинаеться с 0-ля,
+                       но в прототип приходит 3-й созданный объект:
+                       .1-й - он сам
+                       .2-й - в child */
+                    expect(child1.getId()).toBe(2);
+                    expect(child1.getChildId()).toBe(11);
+
+                    expect(child2.getId()).toBe(3);
+                    expect(child2.getChildId()).toBe(12);
+
+                    done();
+                });
+            });
+        });
+
+        xit('должно работать наследование c синглтоном родителем', function(){
+
+        });
+
+        it('должно работать наследование когда оба синглтоны', function(done){
+            require(['require_js_provider'], function (provider) {
+                provider['buildCtx'](['inheritance/singletonChild'], function (ctx) {
+                    ctx.initialize();
+
+                    var child1 = ctx.get('inheritance.sChild');
+                    var child2 = ctx.get('inheritance.sChild');
+
+                    expect(child1.getId()).toBe(0);
+                    expect(child1.getChildId()).toBe(10);
+
+                    expect(child2.getId()).toBe(0);
+                    expect(child2.getChildId()).toBe(10);
+
+                    done();
+                });
+            });
+        });
+    });
+
+    describe('тестирование с подгрузкой модулей require.js-ом', function () {
+        it('должен переопределять имена после загрузки', function (done) {
+            require.config({
+                baseUrl: '../../src/domain'
+
+            });
+            require(['require_js_provider'], function (provider) {
+                provider['buildCtx'](['model', 'testItem'], function (ctx) {
+                    // фикстура testItem - не уверен что подмешаеться вовремя...
+
+                    //require(['testItem'], function (fixture) {
+                    //  provider['addTypes'](arguments, ctx);
+
+                    ctx.initialize();
+
+                    var domain = ctx.get('domain');
+                    expect(domain.item.key).toBe('item');
+                    domain.run();
+
+                    expect(domain.item.key).toBe('fixture');
+                    done();
+                    //});
+                });
+            });
+        });
+    });
 });
