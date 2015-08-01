@@ -22,6 +22,7 @@
   "dependencies": {
     "jasmine-core": "~2.3.4",
     "di-lite": "~0.3.3",
-    "requirejs-bower": "~2.1.20"
+    "requirejs-bower": "~2.1.20",
+    "when": "~3.7.3"
   }
 }

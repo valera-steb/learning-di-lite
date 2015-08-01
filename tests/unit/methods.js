@@ -89,7 +89,7 @@ describe('подход к компоновке объектов', function () {
             });
         });
 
-        it('можно выстраивать наследование *', function(done){
+        it('можно выстраивать наследование *', function (done) {
             require(['require_js_provider'], function (provider) {
                 provider['buildCtx'](['inheritance/child'], function (ctx) {
                     ctx.initialize();
@@ -98,10 +98,10 @@ describe('подход к компоновке объектов', function () {
                     var child2 = ctx.get('inheritance.child');
 
                     /* при инициализации di-lite создаёт экземпляры объектов
-                       поэтому хоть нумерация родителя и начинаеться с 0-ля,
-                       но в прототип приходит 3-й созданный объект:
-                       .1-й - он сам
-                       .2-й - в child */
+                     поэтому хоть нумерация родителя и начинаеться с 0-ля,
+                     но в прототип приходит 3-й созданный объект:
+                     .1-й - он сам
+                     .2-й - в child */
                     expect(child1.getId()).toBe(2);
                     expect(child1.getChildId()).toBe(11);
 
@@ -113,11 +113,11 @@ describe('подход к компоновке объектов', function () {
             });
         });
 
-        xit('должно работать наследование c синглтоном родителем', function(){
+        xit('должно работать наследование c синглтоном родителем', function () {
 
         });
 
-        it('должно работать наследование когда оба синглтоны', function(done){
+        it('должно работать наследование когда оба синглтоны', function (done) {
             require(['require_js_provider'], function (provider) {
                 provider['buildCtx'](['inheritance/singletonChild'], function (ctx) {
                     ctx.initialize();
@@ -133,6 +133,44 @@ describe('подход к компоновке объектов', function () {
 
                     done();
                 });
+            });
+        });
+    });
+
+    describe('require_for_di-lite - клей библиотек с добавлением наследования', function () {
+        it('позволяет создать несколько скоупов от одного класса', function (done) {
+            require.config({
+                baseUrl: '../../src/domain/',
+                map: {
+                    '*': {'when': '../../bower_components/when/when'}
+                },
+                deps: ['../require_for_di-lite']
+            });
+
+            require(['require_for_di-lite', 'when'], function (Provider, when) {
+                Provider.when = when;
+
+                when.all([
+                    (new Provider).buildCtx(['inheritance/singletonChild']),
+                    (new Provider).buildCtx(['inheritance/singletonChild'])
+                ])
+                    .then(function (ctxs) {
+                        console.log(arguments);
+
+                        var c1 = ctxs[0].get('inheritance.sChild'),
+                            c2 = ctxs[1].get('inheritance.sChild');
+
+                        expect(c1.getChildId()).toBe(10);
+                        expect(c2.getChildId()).toBe(11);
+
+                        c1.id = 1;
+
+                        expect(ctxs[0].get('inheritance.sChild').getChildId()).toBe(1);
+                        expect(ctxs[1].get('inheritance.sChild').getChildId()).toBe(11);
+
+                        expect(true).toBeTruthy();
+                        done();
+                    });
             });
         });
     });
