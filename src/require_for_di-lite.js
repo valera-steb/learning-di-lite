@@ -54,7 +54,8 @@ define('require_for_di-lite', [], function () {
         return {
             'buildCtx': function (modules, onDone) {
 
-                if (!modules || modules.length < 1)
+                if (!modules)
+                //|| modules.length < 1)
                     throw new Error('have no modules array');
 
                 var on = makeCallbacks(onDone);
@@ -93,4 +94,47 @@ define('require_for_di-lite', [], function () {
     }
 
     return Require_for_diLite;
+});
+
+
+define('require_for_di-lite/privateScopeWrapper', ['require_for_di-lite', 'when'], function (ScopeProvider, when) {
+    if (!ScopeProvider.when)
+        ScopeProvider.when = when;
+
+    return function (componentName, componentCore) {
+        var config;
+
+
+        function PrivateScope(swappers) {
+            var
+                readyDefer = when.defer(),
+                self = this,
+                ctxProvider = new ScopeProvider();
+
+            self.ready = readyDefer.promise;
+
+            function hasCtx(ctx) {
+                ctxProvider.addTypes([componentCore], ctx);
+
+                if (swappers && swappers[config.name])
+                    swappers[config.name](ctxProvider, ctx);
+
+                ctx.initialize();
+
+                ctx.get(componentCore.name).buildInterface(self);
+                readyDefer.resolver.resolve(self);
+            }
+
+            ctxProvider
+                .buildCtx([])
+                .done(hasCtx);
+        };
+
+
+        return config = {
+            name: PrivateScope.component = componentName,
+            c: PrivateScope,
+            strategy: di.strategy.proto
+        };
+    };
 });

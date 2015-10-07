@@ -2,6 +2,19 @@
  * Created on 13.07.2015.
  */
 describe('подход к компоновке объектов', function () {
+    var r_config = {
+        baseUrl: '../../src/domain/',
+        map: {
+            '*': {'when': '../../bower_components/when/when'}
+        },
+        deps: ['../require_for_di-lite']
+    };
+
+
+    describe('уточнения', function () {
+    });
+
+
     describe('связка предметных областей / интерпретация', function () {
         function A() {
             var self = {
@@ -138,14 +151,8 @@ describe('подход к компоновке объектов', function () {
     });
 
     describe('require_for_di-lite - клей библиотек с добавлением наследования', function () {
-        it('позволяет создать несколько скоупов от одного класса', function (done) {
-            require.config({
-                baseUrl: '../../src/domain/',
-                map: {
-                    '*': {'when': '../../bower_components/when/when'}
-                },
-                deps: ['../require_for_di-lite']
-            });
+        xit('позволяет создать несколько скоупов от одного класса (нужно запускать самостоятельно, зависит от состояние кеша require.js)', function (done) {
+            require.config(r_config);
 
             require(['require_for_di-lite', 'when'], function (Provider, when) {
                 Provider.when = when;
@@ -173,6 +180,8 @@ describe('подход к компоновке объектов', function () {
                     });
             });
         });
+
+        xit('создание приватного объекта');
     });
 
     describe('тестирование с подгрузкой модулей require.js-ом', function () {
@@ -182,23 +191,122 @@ describe('подход к компоновке объектов', function () {
 
             });
             require(['require_js_provider'], function (provider) {
-                provider['buildCtx'](['model', 'testItem'], function (ctx) {
+                provider['buildCtx'](['model', 'item'], function (ctx) {
                     // фикстура testItem - не уверен что подмешаеться вовремя...
 
-                    //require(['testItem'], function (fixture) {
-                    //  provider['addTypes'](arguments, ctx);
+                    require(['testItem'], function (fixture) {
+                        provider['addTypes'](arguments, ctx);
 
-                    ctx.initialize();
+                        ctx.initialize();
 
-                    var domain = ctx.get('domain');
-                    expect(domain.item.key).toBe('item');
-                    domain.run();
+                        var domain = ctx.get('domain');
+                        expect(domain.item.key).toBe('item');
+                        domain.run();
 
-                    expect(domain.item.key).toBe('fixture');
-                    done();
-                    //});
+                        expect(domain.item.key).toBe('fixture');
+                        done();
+                    });
                 });
             });
         });
+
+        xit('подмешивание фикутуры приватного объекта');
+    });
+
+
+    describe('private scopes', function () {
+        var provider;
+
+
+        function init(lunch) {
+            r_config.callback = function () {
+                require(['require_for_di-lite'], function (Provider) {
+                    provider = new Provider();
+                    provider.buildCtx(['privateScope/componentWithPrivateScope'], lunch);
+                });
+            };
+
+            require.config(r_config);
+        }
+
+        function onReady(ready) {
+            init(function (ctx) {
+                var c = ctx.get('componentWithPrivateScope');
+
+                c.ready.then(ready);
+            });
+        }
+
+
+        it('инициализироваться', function (done) {
+            onReady(function (c) {
+                expect(c.key).toBe('10');
+                done();
+            });
+        });
+
+        it('добираться до внутрннего поведения', function (done) {
+            onReady(function (c) {
+                expect(c.state()).toBe(10);
+
+                c.some();
+
+                expect(c.state()).toBe(11);
+                done();
+            })
+        });
+
+        it('подставлять фикстуры', function (done) {
+            var fixture;
+
+            init(function (ctx) {
+                require(['privateScope/partFixture'], function (Fixture) {
+                    var swapper = {
+                        'componentWithPrivateScope': function (provider, ctx) {
+                            provider.addTypes([fixture.definition], ctx);
+                        }
+                    };
+
+                    fixture = new Fixture();
+
+                    ctx
+                        .create('componentWithPrivateScope', swapper)
+                        .ready.then(test);
+                });
+            });
+
+            function test(c) {
+                c.state();
+                c.some();
+
+                expect(fixture.getLog()).toBeTruthy(':state:act');
+                done();
+            }
+        });
+    });
+
+
+    describe('private scopes: privateScopeWrapper', function () {
+        it('создаваться', function (done) {
+            r_config.callback = function () {
+                require(['require_for_di-lite'], function (Provider) {
+                    var provider = new Provider();
+
+                    provider.buildCtx(['privateScope/wrapped'], function (ctx) {
+                        ctx.get('wrapped')
+                            .ready.then(function (c) {
+                                expect(c.state()).toBe(10);
+
+                                c.some();
+
+                                expect(c.state()).toBe(11);
+                                done();
+                            });
+                    });
+                });
+            };
+
+            require.config(r_config);
+        })
     });
 });
