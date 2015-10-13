@@ -183,7 +183,7 @@ describe('подход к компоновке объектов', function () {
 
         xit('создание приватного объекта');
 
-        it('подмешивать скоуп в конструктор, если запросили', function(done){
+        xit('подмешивать скоуп в конструктор, если запросили', function(done){
             r_config.callback = function(){
                 require(['require_for_di-lite', 'when'], function(p, w){
                     p.when = w;
@@ -260,14 +260,14 @@ describe('подход к компоновке объектов', function () {
         }
 
 
-        it('инициализироваться', function (done) {
+        xit('инициализироваться', function (done) {
             onReady(function (c) {
                 expect(c.key).toBe('10');
                 done();
             });
         });
 
-        it('добираться до внутрннего поведения', function (done) {
+        xit('добираться до внутрннего поведения', function (done) {
             onReady(function (c) {
                 expect(c.state()).toBe(10);
 
@@ -278,7 +278,7 @@ describe('подход к компоновке объектов', function () {
             })
         });
 
-        it('подставлять фикстуры', function (done) {
+        xit('подставлять фикстуры', function (done) {
             var fixture;
 
             init(function (ctx) {
@@ -309,7 +309,7 @@ describe('подход к компоновке объектов', function () {
 
 
     describe('private scopes: privateScopeWrapper', function () {
-        it('создаваться', function (done) {
+        xit('создаваться', function (done) {
             r_config.callback = function () {
                 require(['require_for_di-lite'], function (Provider) {
                     var provider = new Provider();
@@ -329,7 +329,7 @@ describe('подход к компоновке объектов', function () {
             };
 
             require.config(r_config);
-        })
+        });
 
         xit('должен внутри скоупа предоставлять доступ к локальному контексту');
     });

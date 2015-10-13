@@ -43,8 +43,8 @@ describe('di usecases', function () {
             }
         }
 
-        beforeEach(function(){
-            id=0;
+        beforeEach(function () {
+            id = 0;
         });
 
         it('создание через create([name], ctx)', function () {
@@ -76,11 +76,12 @@ describe('di usecases', function () {
         });
 
 
-        function proA(ctx){
+        function proA(ctx) {
             return {
                 b: ctx.get('obj')
             }
         }
+
         it('циклические зависимости запрошенные через контекст при создании вызывают исключение', function () {
             // create di context
             var ctx = di.createContext();
@@ -93,5 +94,25 @@ describe('di usecases', function () {
                 ctx.initialize();
             }).toThrow();
         });
+    });
+
+    it('регистрация с контекстом и создание через create([name], param)', function () {
+        function x() {
+             this.a = arguments[0];
+        }
+
+        var ctx = di.createContext(), obj ={'some': 'object'};
+        ctx.register("x", x, ctx)
+            .strategy(di.strategy.proto);
+
+        ctx.initialize();
+
+        var x0 = ctx.get('x');
+        var x1 = ctx.create('x', 'some data');
+        var x2 = ctx.create('x', obj);
+
+        expect(x0.a).toBe(ctx);
+        expect(x1.a).toBe('some data');
+        expect(x2.a).toBe(obj);
     });
 });
