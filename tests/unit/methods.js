@@ -182,6 +182,28 @@ describe('подход к компоновке объектов', function () {
         });
 
         xit('создание приватного объекта');
+
+        it('подмешивать скоуп в конструктор, если запросили', function(done){
+            r_config.callback = function(){
+                require(['require_for_di-lite', 'when'], function(p, w){
+                    p.when = w;
+
+                    (new p)
+                        .buildCtx(['withScopeInConstructor'])
+                        .then(test);
+                })
+            };
+
+            function test(ctx){
+                var c = ctx.get('withScopeInConstructor');
+                var _ctx = c.getScope();
+
+                expect(ctx).toBe(_ctx);
+                done();
+            }
+
+            require.config(r_config);
+        });
     });
 
     describe('тестирование с подгрузкой модулей require.js-ом', function () {
@@ -308,5 +330,7 @@ describe('подход к компоновке объектов', function () {
 
             require.config(r_config);
         })
+
+        xit('должен внутри скоупа предоставлять доступ к локальному контексту');
     });
 });

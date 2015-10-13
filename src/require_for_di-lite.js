@@ -38,7 +38,10 @@ define('require_for_di-lite', [], function () {
 
                 registrateParent(type, ctx);
 
-                var reg = ctx.register(type.name, type.c);
+                var reg = type['getScope']
+                    ? ctx.register(type.name, type.c, ctx)
+                    : ctx.register(type.name, type.c);
+
                 registrateSettings(reg, type, 'strategy');
                 registrateSettings(reg, type, 'factory');
 
