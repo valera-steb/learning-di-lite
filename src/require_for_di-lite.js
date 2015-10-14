@@ -1,25 +1,24 @@
 /**
  * Created on 30.07.2015.
  */
-define('require_for_di-lite', ['require_for_di-lite/registrationUtils'], function (registrat) {
+define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
+    'require_for_di-lite/utils'], function (registrat, utils) {
 
     function Require_for_diLite() {
-
-        function isType(x) {
-            return x && x['name'] && x['c'];
-        }
+        var self, needCtx = {};
 
         function add(types, ctx) {
             for (var i in types) {
 
                 var type = types[i];
-                if (!isType(type))
+                if (!utils.isType(type))
                     continue;
 
                 registrat.parent(type, ctx);
 
                 var reg = type['getScope']
-                    ? ctx.register(type.name, type.c, {ctx: ctx})
+                    ? (needCtx[type.name] = !0,
+                    ctx.register(type.name, type.c, {ctx: ctx}))
                     : ctx.register(type.name, type.c);
 
                 registrat.settings(reg, type, 'strategy');
@@ -34,8 +33,52 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils'], functio
             }
         }
 
+        var errors = {
+            rebuild: function () {
+                throw new Error('После создания контекста его нельзя доинициализировать, используйте addTypes');
+            },
+            noTypes: function (types) {
+                if (Array.isArray(types))
+                    return;
 
-        return {
+                throw new Error('При добавлении должен быть передан массив с типами');
+            },
+            needTypeName: function (name) {
+                if (utils.isNotEmptyString(name))
+                    return;
+
+                throw new Error('Для создания объекта нужно его имя');
+            },
+            noNeedCtx: function (params) {
+                if (typeof params['ctx'] == 'undefined')
+                    return;
+
+                throw new Error('В параметрах для конструктора не может быть контекста (ctx)');
+            }
+        };
+
+        function makeAddTypes(ctx) {
+            ctx['addTypes'] = self['addTypes'] = function (types) {
+                errors.noTypes(types);
+
+                add(types, ctx);
+            }
+        }
+
+        function makeCreate(ctx) {
+            ctx['createWith'] = self['create'] = function (name, params) {
+                errors.needTypeName(name);
+
+                if (params && needCtx[name]) {
+                    errors.noNeedCtx(params);
+                    params['ctx'] = ctx;
+                }
+
+                return ctx.create(name, params);
+            }
+        }
+
+        return self = {
             'buildCtx': function (modules, onDone) {
 
                 if (!modules)
@@ -47,6 +90,10 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils'], functio
                     var ctx = di.createContext();
 
                     add(arguments, ctx);
+                    makeAddTypes(ctx);
+                    makeCreate(ctx);
+                    self['buildCtx'] = errors.rebuild;
+
                     on.done(ctx);
                 }
 
@@ -57,14 +104,22 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils'], functio
 
                 return on.promise;
             },
-            'addTypes': add
+
+            'addTypes': function () {
+                throw new Error('Нельзя добавить описание типа без контекста (buildCtx)')
+            },
+
+            'create': function () {
+                throw new Error('Нельзя создавать объекты без контекста (buildCtx)')
+            }
         };
     }
 
     function makeCallbacks(done) {
         if (!Require_for_diLite.when)
-            return {done: done || function () {
-            }};
+            return {
+                done: done || function () {
+                }};
 
         var
             defer = Require_for_diLite.when.defer(),
@@ -157,4 +212,31 @@ define('require_for_di-lite/registrationUtils', [], {
         if (type && type[key])
             reg[key](type[key]);
     }
+});
+
+define('require_for_di-lite/utils', [], function () {
+    var utils = {};
+
+    if (!Array.isArray) {
+        Array.isArray = function (arg) {
+            return Object.prototype.toString.call(arg) === '[object Array]';
+        };
+    }
+
+    utils.isFunction = function (functionToCheck) {
+        return Object.prototype.toString.call(functionToCheck) === '[object Function]';
+    };
+
+    utils.isNotEmptyString = function (s) {
+        var isSt = Object.prototype.toString.call(s) === '[object String]';
+        return isSt && s.length > 0;
+    };
+
+    utils.isType = function (x) {
+        return x && x['name'] && x['c']
+            && utils.isFunction(x['c'])
+            && utils.isNotEmptyString(typeof x['name']);
+    };
+
+    return utils;
 });
