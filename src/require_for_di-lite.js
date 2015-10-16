@@ -54,6 +54,16 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
                     return;
 
                 throw new Error('В параметрах для конструктора не может быть контекста (ctx)');
+            },
+            notProxy: function (type, map) {
+                if (!utils.isType(type))
+                    throw new Error('proxy not type');
+
+                if (!utils.isNotEmptyString(type.parent))
+                    throw new Error('прокси должен указать тип, который подменять');
+
+                if (!map[type.parent])
+                    throw new Error('в контексте нет типа, который оборачивать: ' + type.parent);
             }
         };
 
@@ -78,6 +88,25 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
             }
         }
 
+        function makeAddProxy(ctx) {
+            ctx['addProxy'] = self['addProxy'] = function (type) {
+                errors.notProxy(type, ctx.map);
+
+                var
+                    baseName = type.parent,
+                    baseSubName = utils.format('proxyBase_for_{0}_of_{1}_',
+                        type.name, type.parent);
+
+                baseSubName = registrat.getUniqueProxyName(
+                    ctx.map, baseSubName);
+
+                registrat.fillProxyType(type, ctx.map[type.parent], baseSubName);
+
+                ctx.map[baseSubName] = ctx.map[baseName];
+                ctx['addTypes']([type]);
+            }
+        }
+
         return self = {
             'buildCtx': function (modules, onDone) {
 
@@ -92,6 +121,7 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
                     add(arguments, ctx);
                     makeAddTypes(ctx);
                     makeCreate(ctx);
+                    makeAddProxy(ctx);
                     self['buildCtx'] = errors.rebuild;
 
                     on.done(ctx);
@@ -111,6 +141,10 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
 
             'create': function () {
                 throw new Error('Нельзя создавать объекты без контекста (buildCtx)')
+            },
+
+            'addProxy': function (proxyType) {
+                throw new Error('Нельзя создавать объекты без контекста (buildCtx)')
             }
         };
     }
@@ -119,7 +153,8 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
         if (!Require_for_diLite.when)
             return {
                 done: done || function () {
-                }};
+                }
+            };
 
         var
             defer = Require_for_diLite.when.defer(),
@@ -139,13 +174,29 @@ define('require_for_di-lite', ['require_for_di-lite/registrationUtils',
 });
 
 
-define('require_for_di-lite/privateScopeWrapper', ['require_for_di-lite', 'require_for_di-lite/registrationUtils'], function (ScopeProvider, register) {
+define('require_for_di-lite/privateScopeWrapper', ['require_for_di-lite',
+    'require_for_di-lite/registrationUtils', 'require_for_di-lite/utils'], function (ScopeProvider, register, utils) {
     return function (componentName, componentCore, publicConfig) {
         var config = {
-            name: PrivateScope.component = componentName,
-            c: PrivateScope,
-            strategy: di.strategy.proto
-        };
+                name: PrivateScope.component = componentName,
+                c: PrivateScope,
+                strategy: di.strategy.proto
+            },
+            errors = {
+                noParentCtxForChild: function (params) {
+                    if (params && !params.ctx)
+                        return;
+
+                    throw new Error('Child scope ask for parent scope, but has no in params');
+                },
+                noInterfaceBuilder: function (root) {
+                    if (root && root['buildInterface'] &&
+                        utils.isFunction(root['buildInterface']))
+                        return;
+
+                    throw new Error('Child component should provide buildInterface function');
+                }
+            };
 
 
         function PrivateScope(params) {
@@ -164,15 +215,15 @@ define('require_for_di-lite/privateScopeWrapper', ['require_for_di-lite', 'requi
                     params['swappers'][config.name](ctxProvider, ctx);
 
                 if (publicConfig && publicConfig['getScope']) {
-                    if (!params || !params.ctx)
-                        throw new Error('Child scope ask for parent scope, but has no in params');
-
+                    errors.noParentCtxForChild(params);
                     ctx.register('parentScope', params.ctx);
                 }
 
                 ctx.initialize();
 
-                ctx.get(componentCore.name)['buildInterface'](self);
+                var root = ctx.get(componentCore.name);
+                errors.noInterfaceBuilder(root);
+                root['buildInterface'](self);
             }
 
             ctxProvider
@@ -200,17 +251,41 @@ define('require_for_di-lite/registrationUtils', [], {
         type['factory'] = di.factory.func;
 
         var c = type['c'];
-        type['c'] = function () {
-            var parent = ctx.get(type['parent']);
-            c.prototype = parent;
+        type['c'] = function (params) {
+            var p = params || {};
 
-            return new c(parent);
+            p.parent = ctx.get(type['parent']);
+            c.prototype = p.parent;
+
+            return new c(p);
         }
     },
 
     settings: function (reg, type, key) {
         if (type && type[key])
             reg[key](type[key]);
+    },
+
+    getUniqueProxyName: function (map, proxyName) {
+        var id = 0,
+            testName = proxyName;
+
+        while (map[testName]) {
+            testName = proxyName + id++;
+        }
+
+        return testName;
+    },
+
+    swapTypes: function () {
+
+    },
+
+    fillProxyType: function (proxy, base, baseName) {
+        proxy.name = proxy.parent;
+        proxy.strategy = di.factory.proto;
+        proxy.factory = di.factory.func;
+        proxy.parent = baseName;
     }
 });
 
@@ -236,6 +311,15 @@ define('require_for_di-lite/utils', [], function () {
         return x && x['name'] && x['c']
             && utils.isFunction(x['c'])
             && utils.isNotEmptyString(typeof x['name']);
+    };
+
+    utils.format = function (str) {
+        var args = arguments;
+
+        return str.replace(/\{(\d+)\}/g, function (m, n) {
+            var i = (Number(n) + 1).toString();
+            return args[i] ? args[i] : m;
+        });
     };
 
     return utils;

@@ -1,7 +1,7 @@
 /**
  * Created on 13.07.2015.
  */
-describe('di usecases', function () {
+describe('di-lite usecases', function () {
 
     function Constructor() {
         var i = {
@@ -15,6 +15,11 @@ describe('di usecases', function () {
 
     function a() {
         this.data = 'data';
+        var i = 0;
+
+        this.m = function () {
+            return ++i;
+        }
     }
 
     it('должен подмешивать зависимости в объект', function () {
@@ -96,12 +101,12 @@ describe('di usecases', function () {
         });
     });
 
-    it('регистрация с контекстом и создание через create([name], param)', function () {
+    it('регистрация с контекстом (параметрами) и создание через create([name], param)', function () {
         function x() {
-             this.a = arguments[0];
+            this.a = arguments[0];
         }
 
-        var ctx = di.createContext(), obj ={'some': 'object'};
+        var ctx = di.createContext(), obj = {'some': 'object'};
         ctx.register("x", x, ctx)
             .strategy(di.strategy.proto);
 
@@ -115,4 +120,113 @@ describe('di usecases', function () {
         expect(x1.a).toBe('some data');
         expect(x2.a).toBe(obj);
     });
+
+    describe('создание прокси/обёртки', function () {
+
+        it('прокси добавить с тем-же именем и наследником объекта, ' +
+            'а сам объект переименовать в карте контекста', function () {
+            var ctx = di.createContext(),
+                log = '';
+
+            function Proxy(parent) {
+                var self = this;
+
+                this.m = function () {
+                    log += 'c';
+                    return parent.m();
+                }
+            }
+
+            function aProxyC() {
+                var parent = ctx.get('ta');
+                Proxy.prototype = parent;
+                return new Proxy(parent);
+            }
+
+
+            ctx.register("a", a)
+                .strategy(di.strategy.proto);
+
+            ctx.initialize();
+            var a2 = ctx.get('a');
+
+            ctx.register("ap", aProxyC)
+                .strategy(di.strategy.proto)
+                .factory(di.factory.func);
+
+
+            var ta = ctx.map["a"];
+            ctx.map['a'] = ctx.map['ap'];
+            ctx.map['ta'] = ta;
+
+
+            var a1 = ctx.get('a');
+            expect(a1.data).toBe('data');
+            expect(a1.m()).toBe(1);
+            expect(log).toBe('c');
+
+            expect(a2.m()).toBe(1);
+        });
+
+        it('как поведёт себя при синглтоне базовом объекте?', function () {
+            var ctx = di.createContext();
+            ctx.register("a", a);
+
+            ctx.initialize();
+
+            var a1 = ctx.get('a');
+
+            var p = registerProxy(ctx, di.strategy.proto);
+
+            var a2 = ctx.get('a');
+            expect(a1).not.toBe(a2);
+
+            expect(a1.m()).toBe(1);
+            expect(p.log).toBe('');
+
+            expect(a2.m()).toBe(2);
+            expect(p.log).toBe('c');
+
+
+            var a3 = ctx.get('a');
+            expect(a2).not.toBe(a3);
+
+            expect(a2.m()).toBe(3);
+            expect(p.log).toBe('cc');
+        });
+
+        xit('как могут соотноситься стратегии создания' +
+            ' прокси и базового объекта');
+
+        function registerProxy(ctx, strategy) {
+            var p = {log: ''};
+
+            function Proxy(parent) {
+                var self = this;
+
+                this.m = function () {
+                    p.log += 'c';
+                    return parent.m();
+                }
+            }
+
+            function aProxyC() {
+                var parent = ctx.get('ta');
+                Proxy.prototype = parent;
+                return new Proxy(parent);
+            }
+
+            ctx.register("ap", aProxyC)
+                .strategy(strategy)
+                .factory(di.factory.func);
+
+
+            var ta = ctx.map["a"];
+            ctx.map['a'] = ctx.map['ap'];
+            ctx.map['ta'] = ta;
+
+            return p;
+        }
+    });
+
 });
